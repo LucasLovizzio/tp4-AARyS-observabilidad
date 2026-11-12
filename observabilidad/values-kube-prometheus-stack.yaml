@@ -1,0 +1,48 @@
+# kube-prometheus-stack 92.11.0 - release "kube-prometheus-stack", namespace "observabilidad"
+
+# No se usan alertas por correo/Slack en esta práctica
+alertmanager:
+  enabled: false
+
+grafana:
+  adminPassword: admin
+  # Con menos de 512Mi el contenedor se reinicia (OOMKilled) al cargar la interfaz
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  # Loki como datasource desde los valores (no a mano en la interfaz).
+  # uid fijo para que el dashboard exportado lo referencie siempre igual.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.observabilidad.svc.cluster.local:3100
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { memory: 1Gi }
+    # Se deja el comportamiento por defecto: Prometheus solo toma ServiceMonitors con
+    # el label release=kube-prometheus-stack (ver charts/gamecloud-ranking/values.yaml)
+
+# En minikube, controller-manager, scheduler, etcd y kube-proxy exponen sus métricas
+# solo en 127.0.0.1 del nodo. Prometheus las intenta leer por la IP del nodo/pod,
+# la conexión es rechazada y los targets quedan "down". En un clúster local no
+# administramos el control plane, así que se deshabilita su monitoreo.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+# Con el driver docker de minikube, montar "/" del host con propagación falla
+# ("not a shared or slave mount") y node-exporter no arranca.
+prometheus-node-exporter:
+  hostRootFsMount:
+    enabled: false

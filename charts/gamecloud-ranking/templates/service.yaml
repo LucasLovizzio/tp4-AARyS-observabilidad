@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "gamecloud.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "gamecloud.selector" . | nindent 4 }}
+  ports:
+    - name: http          # el ServiceMonitor referencia el puerto por este nombre
+      port: {{ .Values.service.port }}
+      targetPort: http

@@ -1,0 +1,19 @@
+{{- /* Solo si el CRD existe: en la etapa 1 todavía no está instalado el Prometheus Operator */}}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "gamecloud.labels" . | nindent 4 }}
+    # El Prometheus de kube-prometheus-stack solo toma los ServiceMonitors con este label
+    {{- toYaml .Values.serviceMonitor.labels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "gamecloud.selector" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+{{- end }}

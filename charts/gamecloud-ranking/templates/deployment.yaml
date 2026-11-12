@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "gamecloud.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gamecloud.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gamecloud.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+          env:
+            - name: ERROR_RATE
+              value: {{ .Values.fallas.errorRate | quote }}
+            - name: LATENCIA_MS
+              value: {{ .Values.fallas.latenciaMs | quote }}
+            - name: FALLAR_AL_INICIAR
+              value: {{ .Values.fallas.fallarAlIniciar | quote }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

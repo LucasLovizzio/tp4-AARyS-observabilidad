@@ -1,0 +1,70 @@
+# alloy 1.14.2 - release "alloy", namespace "observabilidad"
+# Los logs se leen por la API de Kubernetes (loki.source.kubernetes), así que no hace
+# falta montar /var/log del nodo.
+# Una sola réplica como Deployment alcanza para leer los logs de todo el clúster.
+# Con varios nodos convendría un DaemonSet con clustering para repartir la carga.
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }
+  configMap:
+    create: true
+    content: |
+      // 1. Descubrir todos los pods del clúster
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // 2. Agregar los labels namespace, pod, container y app
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app"
+        }
+      }
+
+      // 3. Leer los logs de cada contenedor
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      // 4. Solo para la API: parsear el JSON y agregar "level" como label
+      loki.process "pods" {
+        stage.match {
+          selector = "{app=\"gamecloud-ranking\"}"
+
+          stage.json {
+            expressions = { level = "" }
+          }
+          stage.labels {
+            values = { level = "" }
+          }
+        }
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // 5. Enviar a Loki
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.observabilidad.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

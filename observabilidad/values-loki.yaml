@@ -1,0 +1,54 @@
+# loki 7.5.0 - release "loki", namespace "observabilidad"
+# Modo monolítico: un solo proceso (SingleBinary) con todos los componentes.
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false            # sin multi-tenancy (un solo tenant "fake")
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem             # chunks e índice en el disco del pod
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+# Componentes de los modos simple-scalable y distribuido: apagados
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# Sin gateway: Alloy y Grafana hablan directo con el Service "loki" (puerto 3100)
+gateway:
+  enabled: false
+
+# Los caches por defecto piden varios GB de memoria: no entran en minikube
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Extras que no se usan en la práctica
+minio:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

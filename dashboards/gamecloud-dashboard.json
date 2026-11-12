@@ -1,0 +1,207 @@
+{
+  "title": "GameCloud - API de ranking",
+  "uid": "gamecloud",
+  "tags": ["gamecloud"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Pedidos por segundo, por ruta",
+      "description": "¿Cuánto tráfico recibe la API? (señal: tráfico)",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (ruta) (rate(http_requests_total{namespace=\"gamecloud\"}[1m]))",
+          "legendFormat": "{{ruta}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Errores 5XX (%)",
+      "description": "¿Qué proporción de pedidos falla? Umbrales: 1% (amarillo) y 5% (rojo). (señal: errores)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": { "mode": "thresholds" },
+          "custom": { "thresholdsStyle": { "mode": "line+area" } },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (sum(rate(http_requests_total{namespace=\"gamecloud\", status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_requests_total{namespace=\"gamecloud\"}[1m]))",
+          "legendFormat": "5XX %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Latencia p95, por ruta",
+      "description": "¿Cuánto tardan los pedidos más lentos? (señal: latencia)",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, ruta) (rate(http_request_duration_seconds_bucket{namespace=\"gamecloud\"}[1m])))",
+          "legendFormat": "{{ruta}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Reinicios por pod",
+      "description": "¿Algún contenedor se está reiniciando?",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (pod) (kube_pod_container_status_restarts_total{namespace=\"gamecloud\"})",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Pods disponibles",
+      "description": "¿Cuántas réplicas están atendiendo?",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "kube_deployment_status_replicas_available{namespace=\"gamecloud\", deployment=\"gamecloud-ranking\"}",
+          "legendFormat": "disponibles"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Targets de la API en UP",
+      "description": "Extra: ¿Prometheus llega a /metrics de los pods a través del Service?",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "graphMode": "area" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(up{namespace=\"gamecloud\", job=\"gamecloud-ranking\"})",
+          "legendFormat": "up"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "CPU por pod (% del límite)",
+      "description": "¿Qué tan cerca están los pods de su límite de CPU? (señal: saturación)",
+      "gridPos": { "x": 12, "y": 16, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"gamecloud\", container=\"api\"}[1m])) / sum by (pod) (kube_pod_container_resource_limits{namespace=\"gamecloud\", container=\"api\", resource=\"cpu\"})",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Memoria por pod (% del límite)",
+      "description": "¿Qué tan cerca están los pods de su límite de memoria? (señal: saturación)",
+      "gridPos": { "x": 18, "y": 16, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"gamecloud\", container=\"api\"}) / sum by (pod) (kube_pod_container_resource_limits{namespace=\"gamecloud\", container=\"api\", resource=\"memory\"})",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "logs",
+      "title": "Logs de error de la API",
+      "description": "¿Qué errores se registraron? (level error o critical)",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{namespace=\"gamecloud\", app=\"gamecloud-ranking\", level=~\"error|critical\"}"
+        }
+      ]
+    }
+  ]
+}

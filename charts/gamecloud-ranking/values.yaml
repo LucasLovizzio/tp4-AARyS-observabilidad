@@ -1,0 +1,35 @@
+replicaCount: 2
+
+image:
+  repository: gamecloud-ranking
+  tag: "1.0"
+  # La imagen se construye dentro de minikube (minikube image build): no se descarga
+  pullPolicy: Never
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Inyección de fallas para los escenarios del TP
+fallas:
+  errorRate: "0"          # proporción de pedidos que devuelven 500 (0 a 1)
+  latenciaMs: "0"         # demora agregada a cada pedido
+  fallarAlIniciar: "false" # "true" provoca CrashLoopBackOff
+
+# Labels del ServiceMonitor: deben coincidir con el serviceMonitorSelector del
+# recurso Prometheus (kubectl get prometheus -n observabilidad -o yaml)
+serviceMonitor:
+  labels:
+    release: kube-prometheus-stack
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 250m, memory: 128Mi }
+
+# Generador de tráfico: llama a la API continuamente para que haya datos
+trafico:
+  enabled: true
+  image: curlimages/curl:8.11.1
+  pausaSegundos: "0.5"

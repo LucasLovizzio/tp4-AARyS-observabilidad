@@ -1,0 +1,47 @@
+{{- if .Values.trafico.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-trafico
+  labels:
+    app.kubernetes.io/name: trafico
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trafico
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trafico
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: curl
+          image: {{ .Values.trafico.image }}
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 32Mi }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              API=http://{{ .Release.Name }}:{{ .Values.service.port }}
+              JUGADORES="ana leo sofi mati juli tomi"
+              # --max-time: sin timeout, un pedido a un pod que ya no existe deja el
+              # loop trabado ~2 minutos (reintentos de conexión TCP)
+              while true; do
+                N=$(( RANDOM % 6 + 1 ))
+                J=$(echo $JUGADORES | cut -d' ' -f$N)
+                if [ $(( RANDOM % 2 )) -eq 0 ]; then G=doom; else G=pacman; fi
+                P=$(( RANDOM % 10000 ))
+                curl -s -o /dev/null --max-time 3 -X POST $API/scores -H 'Content-Type: application/json' \
+                  -d "{\"jugador\":\"$J\",\"juego\":\"$G\",\"puntaje\":$P}"
+                curl -s -o /dev/null --max-time 3 "$API/ranking"
+                curl -s -o /dev/null --max-time 3 "$API/ranking?juego=$G"
+                # De vez en cuando, un pedido inválido (400)
+                if [ $(( RANDOM % 10 )) -eq 0 ]; then curl -s -o /dev/null --max-time 3 "$API/ranking?juego=tetris"; fi
+                sleep {{ .Values.trafico.pausaSegundos }}
+              done
+{{- end }}
